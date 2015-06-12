@@ -1,0 +1,53 @@
+<div itemscope itemtype="http://data-vocabulary.org/Product" id="product">
+    <div class="product_imagen">
+        {% for imagen in entity.imagenes %}
+            <img itemprop="image" src="{{ imagen.webpath(300, null, app.request.host) }}" />
+        {% endfor %}
+    </div>
+    <div class="product_details">
+        <div class="product_name">
+            <h3 itemprop="name" >{{ entity.name }}</h3>
+        </div>
+
+        <meta itemprop="priceCurrency" content="EUR" />
+
+        {% if entity.price > 0 %}
+            <div class="product_price">
+                <p>Precio: <span itemprop="price">{{ entity.price|number_format(2, '.') }}</span>&nbsp;&euro;&nbsp;({{ entity.priceUnit }})</p>
+            </div>
+        {% endif %}
+
+        <meta itemprop="availability" content="in_stock" />
+
+        <div class="product_category">
+            {% if entity.namespace %}
+                <p>Categoría: <a href="{{ path(entity.namespace ~ '.edemy_product_category_details', { 'slug' : entity.category.slug }) }}"><span itemprop="category">{{ entity.category }}</span></a></p>
+            {% else %}
+                <p>Categoría: <a href="{{ path('edemy_product_category_details', { 'slug' : entity.category.slug }) }}"><span itemprop="category">{{ entity.category }}</span></a></p>
+            {% endif %}
+        </div>
+
+        {% if cart_button %}
+            <div class="product_add_to_cart">
+                <a href="{{ path('edemy_main_cart_add', {'id': entity.id}) }}">
+                    <div class="product_add_to_cart">
+                        {{ "cart.add"|translate|upper }}
+                    </div>
+                </a>
+            </div>
+        {% endif %}
+        {% if cart_url %}
+            <div class="product_add_to_cart">
+                <a href="{{ path(cart_url) }}">
+                    <div class="product_add_to_cart">
+                        {{ "Solicitar información"|translate|upper }}
+                    </div>
+                </a>
+            </div>
+        {% endif %}
+
+        <div class="product_description clear">
+            <p itemprop="description">{{ entity.description|raw }}</p>
+        </div>
+    </div>
+</div>

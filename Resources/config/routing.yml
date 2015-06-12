@@ -1,0 +1,12 @@
+edemy_product_product_details:
+    path:           /{_locale}/producto/detalles/{slug}
+    defaults:       { _controller: edemy.main:indexAction }
+    methods:        [ GET ]
+    requirements:   { _locale: es|en }
+
+edemy_product_category_details:
+    path:           /{_locale}/categoria/{slug}
+    defaults:       { _controller: edemy.main:indexAction }
+    methods:        [ GET ]
+    requirements:   { _locale: es|en }
+

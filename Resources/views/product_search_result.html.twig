@@ -1,0 +1,35 @@
+<div class="product_search_result">
+    <div class="product_imagen">
+        <a href="{{ path('edemy_product_product_details', { 'slug' : entity.slug }) }}">
+            {% if entity.imagenes|first.webpath is defined %}
+            <img src="{{ entity.imagenes|first.webpath(250, null, app.request.host) }}" />
+            {% endif %}
+        </a>
+    </div>
+    <a href="{{ path('edemy_product_product_details', { 'slug' : entity.slug }) }}">
+    <p><b>{{ entity.name }}</b></p>
+    </a>
+    {#
+    <div class="product_name">
+        <h3><a href="{{ path('edemy_product_product_details', { 'slug' : entity.slug }) }}">{{ entity.name }}</a></h3>
+    </div>
+    <div class="product_price">
+        <p>Precio: {{ entity.price|number_format(2, '.') }}&nbsp;&euro;&nbsp;({{ entity.priceUnit }})</p>
+    </div>
+    <div class="product_description clear">
+        <p>{{ entity.description|raw }}</p>
+    </div>
+    #}
+</div>
+{#
+        <div class="product">
+            <div class="product_imagen">
+                <a href="{{ path('edemy_product_product_details', { 'slug' : entity.slug }) }}">
+                    {% if entity.imagenes|first.webpath is defined %}
+                    <img src="{{ entity.imagenes|first.webpath(250, null, app.request.host) }}" />
+                    {% endif %}
+                </a>
+            </div>
+            <p><b>{{ entity.name }}</b></p>
+        </div>
+#}

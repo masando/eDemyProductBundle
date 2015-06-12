@@ -1,0 +1,44 @@
+<div class="center">
+    {% if title is defined and num_categories > 1 %}
+        <h2>{{ title }} - <a href="{{ path('edemy_product_category_frontpage') }}">Cambiar</a></h2>
+    {% endif %}
+</div>
+
+<div id="product_catalogo">
+    <div class="count">
+        {#
+        {{ pagination.getTotalItemCount }} Productos 
+        #}
+        {# sorting of properties based on query components #}
+        {#
+        <th>{{ knp_pagination_sortable(pagination, 'Id', 'a.id') }}</th>
+        <th{% if pagination.isSorted('a.Title') %} class="sorted"{% endif %}>{{ knp_pagination_sortable(pagination, 'Title', 'a.title') }}</th>
+        #}
+    </div>
+
+    {% for entity in pagination %}
+        <div class="product">
+            <div class="product_imagen">
+                <a href="{{ path('edemy_product_product_details', { 'slug' : entity.slug }) }}">
+                    {% if entity.imagenes|first.webpath is defined %}
+                    <img src="{{ entity.imagenes|first.webpath(250, null, app.request.host) }}" />
+                    {% endif %}
+                </a>
+            </div>
+            <p><b>{{ entity.name }}</b><br/>
+            {{ entity.price|number_format(2, '.') }}&nbsp;&euro;<br/>
+            <a href="{{ path('edemy_product_product_details', { 'slug': entity.slug }) }}">Más Información</a></p>
+        </div>
+    {% endfor %}
+
+    <div class="navigation">
+        {{ knp_pagination_render(pagination) }}
+    </div>
+
+</div>
+
+<div class="center">
+    {% if title is defined and num_categories > 1 %}
+        <h2>{{ title }} - <a href="{{ path('edemy_product_category_frontpage') }}">Cambiar</a></h2>
+    {% endif %}
+</div>

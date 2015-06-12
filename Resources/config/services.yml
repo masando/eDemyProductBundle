@@ -1,0 +1,7 @@
+services:
+    edemy.product:
+        class: eDemy\ProductBundle\Controller\ProductController
+        calls:
+            - [setEventDispatcher, ["@event_dispatcher"]]
+        tags:
+            - { name: kernel.event_subscriber }
