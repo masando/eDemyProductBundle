@@ -16,6 +16,7 @@ class ProductController extends BaseController
             'edemy_product_product_details_lastmodified' => array('onProductDetailsLastModified', 0),
             'edemy_product_category_details' => array('onCategoryDetails', 0),
             'edemy_product_category_details_lastmodified' => array('onCategoryDetailsLastModified', 0),
+//            'edemy_product_frontpage' => array('onFrontpage', 0),
         ));
     }
 
@@ -47,7 +48,7 @@ class ProductController extends BaseController
         );
 
 
-        $this->addEventModule($event, "product_frontpage.html.twig", array(
+        $this->addEventModule($event, "templates/product_frontpage", array(
             'pagination' => $pagination
         ));
     }
@@ -59,7 +60,8 @@ class ProductController extends BaseController
             'namespace' => $this->getNamespace(),
         ));
         $lastmodified = $entity->getUpdated();
-        $lastmodified_files = $this->getLastModifiedFiles('/../../ProductBundle/Resources/views', '*.html.twig');
+        $lastmodified_files = null;
+//        $lastmodified_files = $this->getLastModifiedFiles('/../../ProductBundle/Resources/views', '*.html.twig');
         if($lastmodified_files > $lastmodified) {
             $lastmodified = $lastmodified_files;
         }
@@ -84,7 +86,7 @@ class ProductController extends BaseController
         $this->get('edemy.meta')->setDescription($entity->getMetaDescription());
         $this->get('edemy.meta')->setKeywords($entity->getMetaKeywords());
 
-        $this->addEventModule($event, "product_details.html.twig", array(
+        $this->addEventModule($event, "templates/product_details", array(
             'entity' => $entity,
             'cart_button' => $cart_button,
             'cart_url' => $cart_url,
@@ -106,7 +108,7 @@ class ProductController extends BaseController
     {
         $this->get('edemy.meta')->setTitlePrefix("Categorías de Productos");
 
-        $this->addEventModule($event, "category_frontpage.html.twig", array(
+        $this->addEventModule($event, "templates/category_frontpage", array(
             'entities' => $this->getRepository('edemy_product_category_frontpage')->findBy(array(
                 'namespace' => $this->getNamespace(),
             )),
@@ -157,7 +159,7 @@ class ProductController extends BaseController
             24/*limit per page*/
         );
 
-        $this->addEventModule($event, "product_frontpage.html.twig", array(
+        $this->addEventModule($event, "templates/product_frontpage", array(
             'pagination' => $pagination,
             'title' => 'Estás en la categoría ' . $category->getName(),
             'num_categories' => $num_categories,

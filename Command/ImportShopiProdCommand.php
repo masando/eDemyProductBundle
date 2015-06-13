@@ -13,7 +13,7 @@ use eDemy\ProductBundle\Entity\Product;
 use eDemy\ProductBundle\Entity\Category;
 use eDemy\ProductBundle\Entity\Imagen;
 
-class ImportShopifyProductsCommand extends ContainerAwareCommand
+class ImportShopiProdCommand extends ContainerAwareCommand
 {
     public $file, $namespace;
     public $input;
