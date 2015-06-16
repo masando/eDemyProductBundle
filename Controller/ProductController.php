@@ -4,6 +4,8 @@ namespace eDemy\ProductBundle\Controller;
 
 use eDemy\MainBundle\Controller\BaseController;
 use eDemy\MainBundle\Event\ContentEvent;
+use Symfony\Component\EventDispatcher\GenericEvent;
+use eDemy\MainBundle\Entity\Param;
 
 class ProductController extends BaseController
 {
@@ -17,7 +19,25 @@ class ProductController extends BaseController
             'edemy_product_category_details' => array('onCategoryDetails', 0),
             'edemy_product_category_details_lastmodified' => array('onCategoryDetailsLastModified', 0),
 //            'edemy_product_frontpage' => array('onFrontpage', 0),
+            'edemy_mainmenu'                        => array('onProductMainMenu', 0),
         ));
+    }
+
+    public function onProductMainMenu(GenericEvent $menuEvent) {
+        $items = array();
+        if ($this->get('security.authorization_checker')->isGranted('ROLE_ADMIN')) {
+            $item = new Param($this->get('doctrine.orm.entity_manager'));
+            $item->setName('Admin_Product');
+            if($namespace = $this->getNamespace()) {
+                $namespace .= ".";
+            }
+            $item->setValue($namespace . 'edemy_product_product_index');
+            $items[] = $item;
+        }
+
+        $menuEvent['items'] = array_merge($menuEvent['items'], $items);
+
+        return true;
     }
 
     public function onFrontpage(ContentEvent $event)

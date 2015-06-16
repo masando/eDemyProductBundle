@@ -67,6 +67,7 @@ class ProductRepository extends EntityRepository
 
     public function findBySearchQuery($query, $namespace = null)
     {
+//        die(var_dump($query . $namespace));
         $qb = $this->createQueryBuilder('p');
         $qb->where('p.name LIKE :query');
         $qb->andWhere('p.namespace = :namespace');
