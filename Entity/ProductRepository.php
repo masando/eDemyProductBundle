@@ -78,4 +78,23 @@ class ProductRepository extends EntityRepository
 
         return $query->getResult();
     }
+
+    public function findOneRandomBy($namespace = null)
+    {
+        $qb = $this->createQueryBuilder('u');
+        $qb->select('COUNT(u)');
+        $qb->where('u.namespace = :namespace');
+        $qb->setParameter('namespace', $namespace);
+        $query = $qb->getQuery();
+        $count = $query->getSingleScalarResult();
+
+        $qb = $this->createQueryBuilder('u');
+        $qb->where('u.namespace = :namespace');
+        $qb->setParameter('namespace', $namespace);
+        $qb->setFirstResult(rand(0, $count - 1));
+        $qb->setMaxResults(1);
+        $query = $qb->getQuery();
+
+        return $query->getSingleResult();
+    }
 }

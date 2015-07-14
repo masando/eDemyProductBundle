@@ -10,3 +10,8 @@ edemy_product_category_details:
     methods:        [ GET ]
     requirements:   { _locale: es|en }
 
+edemy_product_product_tv:
+    path:           /{_locale}/producto/tv
+    defaults:       { _controller: edemy.main:indexAction }
+    methods:        [ GET ]
+    requirements:   { _locale: es|en }

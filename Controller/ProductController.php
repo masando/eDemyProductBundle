@@ -20,6 +20,7 @@ class ProductController extends BaseController
             'edemy_product_category_details_lastmodified' => array('onCategoryDetailsLastModified', 0),
 //            'edemy_product_frontpage' => array('onFrontpage', 0),
             'edemy_mainmenu'                        => array('onProductMainMenu', 0),
+            'edemy_product_product_tv'                        => array('onTvModule', 0),
         ));
     }
 
@@ -186,5 +187,17 @@ class ProductController extends BaseController
         ));
 
         return true;
+    }
+
+    public function onTvModule(ContentEvent $event)
+    {
+        $entity = $this->getRepository($event->getRoute())->findOneRandomBy($this->getNamespace());
+        $content = $this->render("templates/product/product_tv_module", array(
+            'entity' => $entity,
+        ));
+
+        $event->setContent($this->newResponse($content));
+        $event->stopPropagation();
+//        die(var_dump($event));
     }
 }
