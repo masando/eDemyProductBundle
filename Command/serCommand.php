@@ -34,7 +34,8 @@ class serCommand extends ContainerAwareCommand
         $this
             ->setName('get:ser')
             ->setDescription('Show HTML Response')
-            ->addArgument('url', InputArgument::OPTIONAL, 'What URL do you want to get?')
+            ->addArgument('host', InputArgument::REQUIRED, 'What URL do you want to get?')
+            ->addArgument('doc_host', InputArgument::REQUIRED, 'What URL do you want to get?')
             ->addOption('getCategories', null, InputOption::VALUE_OPTIONAL, 'Get Categories')
             ->addOption('getMaxCategories', null, InputOption::VALUE_OPTIONAL, 'Number of categories to crawl')
             ->addOption('getSubcategories', null, InputOption::VALUE_OPTIONAL, 'Get subcategories?')
@@ -53,19 +54,18 @@ class serCommand extends ContainerAwareCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->output = $output;
+        $this->input = $input;
         $this->count = 0;
         $this->subcount = 0;
-        $this->host = 'http://www.__.de/';
-        $this->domain = 'http://www.__.de/es/productos.html';
-        $this->domain2 = 'http://www.__.es/d';
+        $this->host = $this->input->getArgument('host') . '/';
+        $this->doc_host = $this->input->getArgument('doc_host');
+        $this->domain = $this->host . 'es/productos.html';
         $this->products = array();
         $this->client = new Client();
         $crawler = $this->follow($this->domain);
-        $this->output = $output;
-        $this->input = $input;
 
         $this->loadPrices();
-        //die();
 
         $this->getMaxCategories = $this->input->getOption('getMaxCategories');
         $this->getCategories = $this->input->getOption('getCategories');
@@ -112,7 +112,7 @@ class serCommand extends ContainerAwareCommand
                 } else {
                     $this->categoria = $this->trim('/\((\d+)\)/', $crawler->filter('a')->text(), 0);
                 }
-$this->cat = $this->categoria;
+                $this->cat = $this->categoria;
                 if($this->getCategoryProducts) {
                     $crawler = $this->follow($crawler->filter('a')->attr('href'));
                     $this->products($crawler, '.producto');
@@ -144,7 +144,7 @@ $this->cat = $this->categoria;
             }
         } else {
             if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-                $this->output->writeln("No hay categorías.");
+                $this->output->writeln("No hay categorï¿½as.");
             }
         }
     }
@@ -185,12 +185,12 @@ $this->cat = $this->categoria;
                                         //$this->products($crawler, '.producto');
                                         
                                         /*
-                                        $next = $crawler->filter('a[title="Siguiente »"]');
+                                        $next = $crawler->filter('a[title="Siguiente ï¿½"]');
                                         //die(var_dump(iterator_count($next)));
                                         while(iterator_count($next) == 2) {
                                             $crawler = $this->follow($next->attr('href'));
                                             $this->products($crawler, '.productList-item');
-                                            $next = $crawler->filter('a[title="Siguiente »"]');
+                                            $next = $crawler->filter('a[title="Siguiente ï¿½"]');
                                         }
                                         * */
                                         if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
@@ -238,7 +238,7 @@ $this->cat = $this->categoria;
             }
         } else {
             if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-                $this->output->writeln("No hay subcategorías.");
+                $this->output->writeln("No hay subcategorï¿½as.");
             }
             return true;
         }
@@ -332,9 +332,9 @@ $this->cat = $this->categoria;
                     }
                 }
                 if (
-                    ($this->subcategory_count == 32) or //análisis del agua
-                    ($this->subcategory_count == 33) or //iluminación
-                    ($this->subcategory_count == 34) or //calefacción
+                    ($this->subcategory_count == 32) or //anï¿½lisis del agua
+                    ($this->subcategory_count == 33) or //iluminaciï¿½n
+                    ($this->subcategory_count == 34) or //calefacciï¿½n
                     ($this->subcategory_count == 36) or //bombas
                     ($this->subcategory_count == 37) //varios
                 ){
@@ -437,11 +437,11 @@ $this->cat = $this->categoria;
             $body .= $join . $feedingnote;
         }
         if($composition) {
-            $body .= $join . "<h3>Composición:</h3>";
+            $body .= $join . "<h3>Composiciï¿½n:</h3>";
             $body .= $join . $composition;
         }
         if($qualityanalysis) {
-            $body .= $join . "<h3>Análisis de Calidad:</h3>";
+            $body .= $join . "<h3>Anï¿½lisis de Calidad:</h3>";
             $body .= $join . $qualityanalysis;
         }
         if($additives) {
@@ -499,7 +499,7 @@ $this->cat = $this->categoria;
                     } else {
                         $this->products[$this->count]['Published'] = 'FALSE';
                     }
-                    $this->products[$this->count]['Option1 Name'] = 'Tamaño';
+                    $this->products[$this->count]['Option1 Name'] = 'Tamaï¿½o';
                     $this->products[$this->count]['Option1 Value'] = trim($size . ' ' . $comment);
                     $this->products[$this->count]['Option2 Name'] = null;
                     $this->products[$this->count]['Option2 Value'] = null;
@@ -526,7 +526,7 @@ $this->cat = $this->categoria;
                         $img_edemy = "http://edemy.es/d/sera/resized/" . $img_local;
                         //die(var_dump($img_local));
                         //die(var_dump($img_local)));
-                        file_put_contents("/var/www/__.es/www/web/d/sera/original/" . $img_local, file_get_contents($img));
+                        file_put_contents("/var/www/" . $this->doc_host . "/www/web/d/sera/original/" . $img_local, file_get_contents($img));
                         $this->products[$this->count]['Image Src'] = $img_edemy;
                         $this->products[$this->count]['Image Alt Text'] = $title . ' ' . $size;
                         $this->products[$this->count]['Variant Image'] = $img_edemy;
@@ -592,7 +592,7 @@ $this->cat = $this->categoria;
     }
     
     protected function writeCsv($products, $file) {
-        $fp = fopen("/var/www/__.es/www/web/d/sera/csv/" . $file . '.csv', 'w');
+        $fp = fopen("/var/www/" . $this->doc_host . "/www/web/d/sera/csv/" . $file . '.csv', 'w');
         fputcsv($fp, array(
             'Handle', 
             'Title',
@@ -774,13 +774,13 @@ $this->cat = $this->categoria;
 
     private function sluggify($str){
         # special accents
-        $a = array('À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','ÿ','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','Ð','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','?','?','J','j','K','k','L','l','L','l','L','l','?','?','L','l','N','n','N','n','N','n','?','O','o','O','o','O','o','Œ','œ','R','r','R','r','R','r','S','s','S','s','S','s','Š','š','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','Ÿ','Z','z','Z','z','Ž','ž','?','ƒ','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','?','?','?','?','?','?');
+        $a = array('ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','ï¿½','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','?','?','J','j','K','k','L','l','L','l','L','l','?','?','L','l','N','n','N','n','N','n','?','O','o','O','o','O','o','ï¿½','ï¿½','R','r','R','r','R','r','S','s','S','s','S','s','ï¿½','ï¿½','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','ï¿½','Z','z','Z','z','ï¿½','ï¿½','?','ï¿½','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','?','?','?','?','?','?');
         $b = array('A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','s','a','a','a','a','a','a','ae','c','e','e','e','e','i','i','i','i','n','o','o','o','o','o','o','u','u','u','u','y','y','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','D','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','IJ','ij','J','j','K','k','L','l','L','l','L','l','L','l','l','l','N','n','N','n','N','n','n','O','o','O','o','O','o','OE','oe','R','r','R','r','R','r','S','s','S','s','S','s','S','s','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','Y','Z','z','Z','z','Z','z','s','f','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','A','a','AE','ae','O','o');
         return strtolower(preg_replace(array('/[^a-zA-Z0-9 -]/','/[ -]+/','/^-|-$/'),array('','-',''),str_replace($a,$b,$str)));
     }
 
     private function loadPrices() {
-        if (($handle = fopen("/var/www/__.es/www/web/d/sera/csv/precios_sera.csv", "r")) !== FALSE) {
+        if (($handle = fopen("/var/www/" . $this->doc_host . "/www/web/d/sera/csv/precios_sera.csv", "r")) !== FALSE) {
             while (($data = fgetcsv($handle, null, ",")) !== FALSE) {
                 if(is_numeric($data[1])) {
                     $ref = (int) $data [1];
