@@ -28,13 +28,14 @@ class pecCommand extends ContainerAwareCommand
     private $getCategoryProducts;
     private $prices;
     private $count, $subcount;
-    
+
     protected function configure()
     {
         $this
             ->setName('get:pec')
             ->setDescription('Show HTML Response')
-            ->addArgument('url', InputArgument::OPTIONAL, 'What URL do you want to get?')
+            ->addArgument('host', InputArgument::REQUIRED, 'What URL do you want to get?')
+            ->addArgument('doc_host', InputArgument::REQUIRED, 'What URL do you want to get?')
             ->addOption('getCategories', null, InputOption::VALUE_OPTIONAL, 'Get Categories')
             ->addOption('getMaxCategories', null, InputOption::VALUE_OPTIONAL, 'Number of categories to crawl')
             ->addOption('getSubcategories', null, InputOption::VALUE_OPTIONAL, 'Get subcategories?')
@@ -53,19 +54,17 @@ class pecCommand extends ContainerAwareCommand
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->output = $output;
+        $this->input = $input;
         $this->count = 0;
         $this->subcount = 0;
-        //host
-        $this->host = 'http://www.__.com/';
-        //domain
-        $this->domain = 'http://www.__.com/';
-        //img
-        $this->domain2 = 'http://www.__.es/d';
+        $this->host = $this->input->getArgument('host') . '/';
+        $this->doc_host = $this->input->getArgument('doc_host');
+        $this->domain = $this->host;
+        $this->domain2 = $this->doc_host . '/d';
         $this->products = array();
         $this->client = new Client();
         $crawler = $this->follow($this->domain);
-        $this->output = $output;
-        $this->input = $input;
 
         $this->loadPrices();
         //die();
@@ -78,7 +77,7 @@ class pecCommand extends ContainerAwareCommand
         $this->firstSubcategory = 1;
         $this->firstSubcategory = $this->input->getOption('firstSubcategory');
         $this->firstSubcategory--;
-        $this->subcategory_count = 0;
+        $this->subcategory_count = 1;
         $this->getProducts = $this->input->getOption('getProducts');
         $this->writeAllSubcategories = false;
         $this->writeAllSubcategories = $this->input->getOption('writeAllSubcategories');
@@ -99,7 +98,7 @@ class pecCommand extends ContainerAwareCommand
     }
 
     protected function categorias($crawler, $xpath) {
-        //categorías sin subcategorías
+        //categorï¿½as sin subcategorï¿½as
         $original_crawler = $crawler;
         $filter = $crawler->filter($xpath)
 			->children();
@@ -115,23 +114,25 @@ class pecCommand extends ContainerAwareCommand
 					$categoria = 1;
 					$this->categoria = $this->trim('/\((\d+)\)/', $crawler->text(), 0);
 					if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-							$this->output->writeln('<info>' . 'CAT: ' . $this->categoria . '</info>');
+							$this->output->writeln('<info>' . $this->subcategory_count . ' CAT: ' . $this->categoria . '</info>');
 					}
 					$this->subcategoria = null;
 					$link = $crawler->attr('href');
 					$link = array_values(explode('?', $link))[0];
 					$crawler = $this->follow($link);
-					
-					$this->products($crawler);
-					$this->subcategory_count++;
-					if($this->maxSubcategories <= $this->subcategory_count) {
+
+                    if(!in_array($this->subcategory_count, $this->ignoreSubcategories)) {
+                        $this->products($crawler);
+                    }
+					//$this->subcategory_count++;
+					if($this->maxSubcategories <= $this->subcategory_count++) {
 						break;
 					}
 				} elseif (strstr($crawler->attr('class'), "submenuheader") ) {
 					$categoria = 2;
 					$this->categoria = $this->trim('/\((\d+)\)/', $crawler->text(), 0);
 					if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-                        $this->output->writeln('<info>' . 'CAT: ' . $this->categoria . '</info>');
+                        $this->output->writeln('<info>' . $this->subcategory_count . ' CAT: ' . $this->categoria . '</info>');
 					}
 					$this->subcategoria = null;
 				} else {
@@ -142,15 +143,17 @@ class pecCommand extends ContainerAwareCommand
 							$crawler = new Crawler($content);
 							$this->subcategoria = $crawler->text();
 							if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-								$this->output->writeln('<info>' . 'SUBCAT: ' . $this->subcategoria . '</info>');
+								$this->output->writeln('<info>' . $this->subcategory_count . ' SUBCAT: ' . $this->subcategoria . '</info>');
 							}
 							
 							$link = $crawler->attr('href');
 							$link = array_values(explode('?', $link))[0];
 							$crawler = $this->follow($link);
-							$this->products($crawler);
-							$this->subcategory_count++;
-							if($this->maxSubcategories <= $this->subcategory_count) {
+                            if(!in_array($this->subcategory_count, $this->ignoreSubcategories)) {
+                                $this->products($crawler);
+                            }
+							//$this->subcategory_count++;
+							if($this->maxSubcategories <= $this->subcategory_count++) {
 								break;
 							}
 
@@ -265,9 +268,9 @@ class pecCommand extends ContainerAwareCommand
                     if($img) {
                         $img_file = explode('/', $img);
                         $img_file = end($img_file);
-                        $img_local = "/var/www/edemy.es/www/web/d/peces/original/" . $img_file;
-                        $img_local_resized = "/var/www/edemy.es/www/web/d/peces/resized/" . $img_file;
-                        $img_edemy = "http://edemy.es/d/peces/resized/" . $img_file;
+                        $img_local = "/var/www/" . $this->doc_host . "/www/web/d/peces/original/" . $img_file;
+                        $img_local_resized = "/var/www/" . $this->doc_host . "/www/web/d/peces/resized/" . $img_file;
+                        $img_edemy = "http://" . $this->doc_host . "/d/peces/resized/" . $img_file;
                         //die(var_dump($img_local));
                         //die(var_dump($img_local)));
                         file_put_contents($img_local, file_get_contents($img));
@@ -349,9 +352,9 @@ class pecCommand extends ContainerAwareCommand
             if($img) {
                 $img_file = explode('/', $img);
                 $img_file = end($img_file);
-                $img_local = "/var/www/__.es/www/web/d/peces/original/" . $img_file;
-                $img_local_resized = "/var/www/__.es/www/web/d/peces/resized/" . $img_file;
-                $img_edemy = "http://__.es/d/peces/resized/" . $img_file;
+                $img_local = "/var/www/" . $this->doc_host . "/www/web/d/peces/original/" . $img_file;
+                $img_local_resized = "/var/www/" . $this->doc_host . "/www/web/d/peces/resized/" . $img_file;
+                $img_edemy = "http://" . $this->doc_host . "/d/peces/resized/" . $img_file;
                 //die(var_dump($img_local));
                 //die(var_dump($img_local)));
                 file_put_contents($img_local, file_get_contents($img));
@@ -395,7 +398,7 @@ class pecCommand extends ContainerAwareCommand
     }
     
     protected function writeCsv($products, $file) {
-        $fp = fopen("/var/www/__.es/www/web/d/peces/csv/" . $file . '.csv', 'w');
+        $fp = fopen("/var/www/" . $this->doc_host . "/www/web/d/peces/csv/" . $file . '.csv', 'w');
         fputcsv($fp, array(
             'Handle', 
             'Title',
@@ -578,13 +581,13 @@ class pecCommand extends ContainerAwareCommand
 
     private function sluggify($str){
         # special accents
-        $a = array('À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','ß','à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','ÿ','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','Ð','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','?','?','J','j','K','k','L','l','L','l','L','l','?','?','L','l','N','n','N','n','N','n','?','O','o','O','o','O','o','Œ','œ','R','r','R','r','R','r','S','s','S','s','S','s','Š','š','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','Ÿ','Z','z','Z','z','Ž','ž','?','ƒ','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','?','?','?','?','?','?');
+        $a = array('ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','ï¿½','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','ï¿½','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','?','?','J','j','K','k','L','l','L','l','L','l','?','?','L','l','N','n','N','n','N','n','?','O','o','O','o','O','o','ï¿½','ï¿½','R','r','R','r','R','r','S','s','S','s','S','s','ï¿½','ï¿½','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','ï¿½','Z','z','Z','z','ï¿½','ï¿½','?','ï¿½','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','?','?','?','?','?','?');
         $b = array('A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','s','a','a','a','a','a','a','ae','c','e','e','e','e','i','i','i','i','n','o','o','o','o','o','o','u','u','u','u','y','y','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','D','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','IJ','ij','J','j','K','k','L','l','L','l','L','l','L','l','l','l','N','n','N','n','N','n','n','O','o','O','o','O','o','OE','oe','R','r','R','r','R','r','S','s','S','s','S','s','S','s','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','Y','Z','z','Z','z','Z','z','s','f','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','A','a','AE','ae','O','o');
         return strtolower(preg_replace(array('/[^a-zA-Z0-9 -]/','/[ -]+/','/^-|-$/'),array('','-',''),str_replace($a,$b,$str)));
     }
 
     private function loadPrices() {
-        if (($handle = fopen("/var/www/__.es/www/web/d/peces/csv/precios_peces.csv", "r")) !== FALSE) {
+        if (($handle = fopen("/var/www/" . $this->doc_host . "/www/web/d/peces/csv/precios_peces.csv", "r")) !== FALSE) {
             while (($data = fgetcsv($handle, null, ",")) !== FALSE) {
                 if(is_numeric($data[1])) {
                     $ref = (int) $data [1];
