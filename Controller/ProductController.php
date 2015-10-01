@@ -14,6 +14,7 @@ class ProductController extends BaseController
         return self::getSubscriptions('product', ['product', 'category'], array(
             'edemy_product_category_frontpage_lastmodified' => array('onCategoryFrontpageLastModified', 0),
             'edemy_product_frontpage_lastmodified' => array('onProductFrontpageLastModified', 0),
+            'edemy_frontpage_module_namespace' => array('onFrontpageModuleNamespace', 0),
             'edemy_product_product_details' => array('onProductDetails', 0),
             'edemy_product_product_details_lastmodified' => array('onProductDetailsLastModified', 0),
             'edemy_product_category_details' => array('onCategoryDetails', 0),
@@ -200,4 +201,24 @@ class ProductController extends BaseController
         $event->stopPropagation();
 //        die(var_dump($event));
     }
+
+    public function onFrontpageModuleNamespace(ContentEvent $event)
+    {
+        //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
+        $query = $this->getRepository('eDemyProductBundle:Product')->findAllOrderedByName($this->getNamespace(), true);
+
+        $paginator  = $this->get('knp_paginator');
+        $pagination = $paginator->paginate(
+            $query,
+            $this->get('request')->query->get('page', 1)/*page number*/,
+            24/*limit per page*/
+        );
+
+
+        $this->addEventModule($event, "templates/product/product_frontpage", array(
+            'pagination' => $pagination
+        ));
+    }
+
+
 }
