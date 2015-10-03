@@ -15,8 +15,8 @@ class ProductController extends BaseController
             'edemy_product_category_frontpage_lastmodified' => array('onCategoryFrontpageLastModified', 0),
             'edemy_product_frontpage_lastmodified' => array('onProductFrontpageLastModified', 0),
             'edemy_frontpage_module_namespace' => array(
-                array('onFrontpageModuleNamespace_Categories', 1),
-                array('onFrontpageModuleNamespace_Products', 0),
+                array('onFrontpageModuleNamespace_Categories', 0),
+                array('onFrontpageModuleNamespace_Products', 1),
             ),
             'edemy_product_product_details' => array('onProductDetails', 0),
             'edemy_product_product_details_lastmodified' => array('onProductDetailsLastModified', 0),
