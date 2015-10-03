@@ -14,12 +14,15 @@ class ProductController extends BaseController
         return self::getSubscriptions('product', ['product', 'category'], array(
             'edemy_product_category_frontpage_lastmodified' => array('onCategoryFrontpageLastModified', 0),
             'edemy_product_frontpage_lastmodified' => array('onProductFrontpageLastModified', 0),
-            'edemy_frontpage_module_namespace' => array('onFrontpageModuleNamespace', 0),
+            'edemy_frontpage_module_namespace' => array(
+                array('onFrontpageModuleNamespace_Categories', 1),
+                array('onFrontpageModuleNamespace_Products', 0),
+            ),
             'edemy_product_product_details' => array('onProductDetails', 0),
             'edemy_product_product_details_lastmodified' => array('onProductDetailsLastModified', 0),
             'edemy_product_category_details' => array('onCategoryDetails', 0),
             'edemy_product_category_details_lastmodified' => array('onCategoryDetailsLastModified', 0),
-//            'edemy_product_frontpage' => array('onFrontpage', 0),
+            //            'edemy_product_frontpage' => array('onFrontpage', 0),
             'edemy_mainmenu'                        => array('onProductMainMenu', 0),
             'edemy_product_product_tv'                        => array('onTvModule', 0),
         ));
@@ -199,26 +202,30 @@ class ProductController extends BaseController
 
         $event->setContent($this->newResponse($content));
         $event->stopPropagation();
-//        die(var_dump($event));
+        //die(var_dump($event));
     }
 
-    public function onFrontpageModuleNamespace(ContentEvent $event)
+    public function onFrontpageModuleNamespace_Categories(ContentEvent $event)
     {
-        //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
-        $query = $this->getRepository('eDemyProductBundle:Product')->findAllOrderedByName($this->getNamespace(), true);
+        if($this->getParam('frontpage_module.product_categories.enable') == 1) {
+            //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
+            $categories = $this->getRepository('eDemyProductBundle:Category')->findAllOrderedByName($this->getNamespace(), true);
 
-        $paginator  = $this->get('knp_paginator');
-        $pagination = $paginator->paginate(
-            $query,
-            $this->get('request')->query->get('page', 1)/*page number*/,
-            24/*limit per page*/
-        );
-
-
-        $this->addEventModule($event, "templates/product/product_frontpage", array(
-            'pagination' => $pagination
-        ));
+            $this->addEventModule($event, "templates/product/frontpagemodule_categories", array(
+                'entities' => $categories
+            ));
+        }
     }
 
+    public function onFrontpageModuleNamespace_Products(ContentEvent $event)
+    {
+        if($this->getParam('frontpage_module.product.enable') == 1) {
+            //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
+            $products = $this->getRepository('eDemyProductBundle:Product')->findAllFavorites($this->getNamespace(), $this->get('doctrine.orm.entity_manager'), 'destacado');
 
+            $this->addEventModule($event, "templates/product/frontpagemodule_favoriteproducts", array(
+                'entities' => $products
+            ));
+        }
+    }
 }

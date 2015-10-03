@@ -27,4 +27,21 @@ class CategoryRepository extends EntityRepository
 
         return $query->getSingleResult();
     }
+
+    public function findAllOrderedByName($namespace = null)
+    {
+        $qb = $this->createQueryBuilder('c');
+        if($namespace == null) {
+            $qb->andWhere('c.namespace is null');
+        } else {
+            $qb->andWhere('c.namespace = :namespace');
+            $qb->setParameter('namespace', $namespace);
+        }
+        $qb->andWhere('c.published = 1');
+        //$qb->orderBy('c.updated','DESC');
+        //$qb->setMaxResults(1);
+        $query = $qb->getQuery();
+
+        return $query->getResult();
+    }
 }
