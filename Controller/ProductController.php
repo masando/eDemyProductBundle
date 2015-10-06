@@ -14,6 +14,7 @@ class ProductController extends BaseController
         return self::getSubscriptions('product', ['product', 'category'], array(
             'edemy_product_category_frontpage_lastmodified' => array('onCategoryFrontpageLastModified', 0),
             'edemy_product_frontpage_lastmodified' => array('onProductFrontpageLastModified', 0),
+            'edemy_frontpage_module' => array('onFrontpageModule', 0),
             'edemy_frontpage_module_namespace' => array(
                 array('onFrontpageModuleNamespace_Categories', 0),
                 array('onFrontpageModuleNamespace_Products', 1),
@@ -205,9 +206,32 @@ class ProductController extends BaseController
         //die(var_dump($event));
     }
 
+    public function onFrontpageModule(ContentEvent $event)
+    {
+        //work with namespace
+        $namespaces = $this->getParamByType('prefix');
+        if(count($namespaces)) {
+            foreach($namespaces as $namespace) {
+                if($this->getParam('frontpage_module.product.enable') == 1) {
+                    //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
+                    //die(var_dump($this->getRepository('eDemyProductBundle:Product')));
+                    $products = $this->getRepository('eDemyProductBundle:Product')->findAllFavorites($namespace->getValue(), $this->get('doctrine.orm.entity_manager'), 'destacado');
+
+                    if(count($products)) {
+                        $this->addEventModule($event, "templates/product/frontpagemodule_favoriteproducts", array(
+                            'entities' => $products,
+                            'namespace' => $namespace,
+                        ));
+                    }
+                }
+            }
+        }
+
+    }
+
     public function onFrontpageModuleNamespace_Categories(ContentEvent $event)
     {
-        if($this->getParam('frontpage_module.product_categories.enable') == 1) {
+        if($this->getParam('frontpage_module_namespace.product_categories.enable') == 1) {
             //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
             $categories = $this->getRepository('eDemyProductBundle:Category')->findAllOrderedByName($this->getNamespace(), true);
 
@@ -219,7 +243,7 @@ class ProductController extends BaseController
 
     public function onFrontpageModuleNamespace_Products(ContentEvent $event)
     {
-        if($this->getParam('frontpage_module.product.enable') == 1) {
+        if($this->getParam('frontpage_module_namespace.product.enable') == 1) {
             //$this->get('edemy.meta')->setTitlePrefix("Catálogo");
             $products = $this->getRepository('eDemyProductBundle:Product')->findAllFavorites($this->getNamespace(), $this->get('doctrine.orm.entity_manager'), 'destacado');
 

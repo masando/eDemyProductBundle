@@ -114,6 +114,7 @@ class ProductRepository extends ResourceRepository
         $products_id = $repository->getResourcesWithTypeAndTag('product_product', $tag);
 
         $qb = $this->createQueryBuilder('p');
+
         if($namespace == null) {
             $qb->andWhere('p.namespace is null');
         } else {
