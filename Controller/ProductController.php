@@ -12,20 +12,20 @@ class ProductController extends BaseController
     public static function getSubscribedEvents()
     {
         return self::getSubscriptions('product', ['product', 'category'], array(
-            'edemy_product_category_frontpage_lastmodified' => array('onCategoryFrontpageLastModified', 0),
-            'edemy_product_frontpage_lastmodified' => array('onProductFrontpageLastModified', 0),
-            'edemy_frontpage_module' => array('onFrontpageModule', 0),
-            'edemy_frontpage_module_namespace' => array(
-                array('onFrontpageModuleNamespace_Categories', 0),
-                array('onFrontpageModuleNamespace_Products', 1),
-            ),
-            'edemy_product_product_details' => array('onProductDetails', 0),
-            'edemy_product_product_details_lastmodified' => array('onProductDetailsLastModified', 0),
-            'edemy_product_category_details' => array('onCategoryDetails', 0),
-            'edemy_product_category_details_lastmodified' => array('onCategoryDetailsLastModified', 0),
-            //            'edemy_product_frontpage' => array('onFrontpage', 0),
-            'edemy_mainmenu'                        => array('onProductMainMenu', 0),
-            'edemy_product_product_tv'                        => array('onTvModule', 0),
+            'edemy_product_category_frontpage_lastmodified'     => array('onCategoryFrontpageLastModified', 0),
+            'edemy_product_frontpage_lastmodified'              => array('onProductFrontpageLastModified', 0),
+            'edemy_frontpage_module'                            => array('onFrontpageModule', 0),
+            'edemy_frontpage_module_namespace'                  => array(
+                                                                    array('onFrontpageModuleNamespace_Categories', 0),
+                                                                    array('onFrontpageModuleNamespace_Products', 1),
+                                                                ),
+            'edemy_product_product_details'                     => array('onProductDetails', 0),
+            'edemy_product_product_details_lastmodified'        => array('onProductDetailsLastModified', 0),
+            'edemy_product_category_details'                    => array('onCategoryDetails', 0),
+            'edemy_product_category_details_lastmodified'       => array('onCategoryDetailsLastModified', 0),
+            //'edemy_product_frontpage'                           => array('onFrontpage', 0),
+            'edemy_mainmenu'                                    => array('onProductMainMenu', 0),
+            'edemy_product_product_tv'                          => array('onTvModule', 0),
         ));
     }
 

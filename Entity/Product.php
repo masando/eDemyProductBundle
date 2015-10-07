@@ -60,7 +60,11 @@ class Product extends BaseEntity implements Translatable
 
     public function setDescription($description)
     {
-        $this->description = $description;
+        if($description == '') {
+            $this->description = " ";
+        } else {
+            $this->description = $description;
+        }
     
         return $this;
     }

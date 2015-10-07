@@ -5,3 +5,10 @@ services:
             - [setEventDispatcher, ["@event_dispatcher"]]
         tags:
             - { name: kernel.event_subscriber }
+
+    edemy.twig.product_extension:
+        class:  eDemy\ProductBundle\Twig\ProductExtension
+        calls:
+            - [setContainer, ["@service_container"]]
+        tags:
+            - { name: twig.extension }
