@@ -2,6 +2,7 @@
 
 namespace eDemy\ProductBundle\Command;
 
+use GuzzleHttp\Cookie\SetCookie;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Input\InputArgument;
@@ -9,9 +10,12 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\Process\Process;
 use GuzzleHttp\Client;
 
-class aqCommand extends ContainerAwareCommand
+//use GuzzleHttp\Cookie\CookieJar;
+
+class azCommand extends ContainerAwareCommand
 {
     private $client;
     private $h, $url, $dh;
@@ -23,11 +27,12 @@ class aqCommand extends ContainerAwareCommand
     private $output, $input;
     private $prices;
     private $count, $subcount;
-
+    private $jar;
+    
     protected function configure()
     {
         $this
-            ->setName('get:aq')
+            ->setName('get:az')
             ->setDescription('Show HTML Response')
 
             ->addArgument('h', InputArgument::REQUIRED, 'What host do you want to get?')
@@ -104,13 +109,13 @@ class aqCommand extends ContainerAwareCommand
         $this->ss = array();
         $this->p = array();
 
-        $this->categories_xpath = '.tree';
+        $this->categories_xpath = '#categories_block_left > div > ul';
         $this->category_item_xpath = 'a';
         $this->subcategories_xpath = 'ul';
         $this->subcategory_item_xpath = 'a';
         $this->subsubcategories_xpath = 'ul';
         $this->subsubcategory_item_xpath = 'a';
-        $this->productlist_xpath = '#product_list';
+        $this->productlist_xpath = '.product_list';
 
         $igno = array();
         if (count($this->ic)) {
@@ -146,6 +151,13 @@ class aqCommand extends ContainerAwareCommand
 
         $this->getOptions();
         $this->init();
+        //$res = $this->client->request('GET', 'http://azaria.es/login', [
+        //
+        //]);
+        //echo $res->getStatusCode();
+        //echo $res->getHeader('content-type');
+        //echo $res->getBody();
+        //die();
         $this->categories();
 
         //if ($this->ws) {
@@ -315,12 +327,16 @@ class aqCommand extends ContainerAwareCommand
                     $this->ss[$this->ss_count]['name'] = $name;
                     $this->ss[$this->ss_count]['url'] = $url;
                     $this->log($this->ss_count . ' SUBSUBCAT: ' . $name);
+                    $p = array();
                     if ($this->gssp) {
                         $products = $this->products($url);
-                        $this->ss[$this->ss_count]['p'] = $products;
+                        foreach($products as $item) {
+                            $p[] = $item;
+                        }
+                        //$this->ss[$this->ss_count]['p'] = $products;
                     }
                     if($this->wss) {
-                        $this->writeCsv($products, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'] . '-' . $this->ss[$this->ss_count]['name']);
+                        $this->writeCsv($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'] . '-' . $this->ss[$this->ss_count]['name']);
                     }
                 }
                 $this->ss_count++;
@@ -330,7 +346,6 @@ class aqCommand extends ContainerAwareCommand
 
         return $this->ss;
     }
-
     protected function products($url) {
         $products = array();
         if($c_products = $this->follow($url)) {
@@ -341,13 +356,13 @@ class aqCommand extends ContainerAwareCommand
                     if (iterator_count($c_products_list)) {
                         foreach ($c_products_list as $i => $content) {
                             $c_product = new Crawler($content);
-                            $link = $c_product->filter('h3 a')->attr('href');
+                            $link = $c_product->filter('h5 a')->attr('href');
 
-                            if ($c_product_details = $this->follow($link)) {
-                                $product = $this->product($c_product_details, $link);
-                            } else {
+                            //if ($c_product_details = $this->follow($link)) {
+                            //    $product = $this->product($c_product_details, $link);
+                            //} else {
                                 $product = $this->product($c_product, $link, true);
-                            }
+                            //}
                             $product['url'] = $link;
                             $products[$this->p_count] = $product;
                         }
@@ -371,27 +386,28 @@ class aqCommand extends ContainerAwareCommand
     protected function product($c_product, $link, $from_list = false) {
         $p = array();
         if($from_list) {
-            $p['Title'] = $c_product->filter('h3 a')->text();
+            $p['Title'] = trim($c_product->filter('h5 a')->text());
             $p['Handle'] = $this->sluggify($p['Title']);
             $this->log($this->p_count .' NAME: ' . $p['Title'], 'cyan');
 
             $p['Body'] = null;
-            if (iterator_count($c_product->filter('.product_desc'))) {
-                $p['Body'] = trim($c_product->filter('.product_desc')->text());
+            if (iterator_count($c_product->filter('div[itemprop="description"]'))) {
+                $p['Body'] = trim($c_product->filter('div[itemprop="description"]')->text());
                 $this->logV('DESC: '.$p['Body']);
             }
             $p['Variant Price'] = null;
-            if (iterator_count($c_product->filter('.price'))) {
-                $p['Variant Price'] = $c_product->filter('.price')->text();
+            die(var_dump(iterator_count($c_product->filter('span[itemprop="price"]'))));
+            if (iterator_count($c_product->filter('span[itemprop="price"]'))) {
+                $p['Variant Price'] = $c_product->filter('span[itemprop="price"]')->text();
                 $this->logV('PRICE: '.$p['Variant Price']);
             }
-
+            $p['Reference'] = null;
             $p['Image Src'] = null;
             $p['Image Alt Text'] = null;
             $p['Variant Image'] = null;
             $img = null;
-            if($c_product->filter('.product_img_link img')->count()) {
-                $c_images = $c_product->filter('.product_img_link img');
+            if($c_product->filter('.product-image-container img')->count()) {
+                $c_images = $c_product->filter('.product-image-container img');
                 foreach ($c_images as $i => $content) {
                     $c_image = new Crawler($content);
                     $img = $c_image->attr('src');
@@ -400,10 +416,10 @@ class aqCommand extends ContainerAwareCommand
 
                     $img_local = explode('/', $img);
                     $img_local = end($img_local);
-                    $img_edemy = "http://maste.es/d/aquatic/original/" . $img_local;
+                    $img_edemy = "http://maste.es/d/azaria/original/" . $img_local;
                     try {
                         file_put_contents(
-                            "/var/www/".$this->dh."/www/web/d/aquatic/original/".$img_local,
+                            "/var/www/".$this->dh."/www/web/d/azaria/original/".$img_local,
                             file_get_contents($img)
                         );
                     } catch (\Exception $e) {
@@ -417,13 +433,14 @@ class aqCommand extends ContainerAwareCommand
                 }
             }
         } else {
-            $p['Title'] = $c_product->filter('#primary_block h1')->text();
+            $p['Title'] = $c_product->filter('h1[itemprop="name"]')->text();
             $p['Handle'] = $this->sluggify($p['Title']);
             $this->log($this->p_count .' NAME: ' . $p['Title'], 'cyan');
 
             $p['Body'] = null;
             if(iterator_count($c_product->filter('#short_description_content'))) {
                 $p['Body'] = trim($c_product->filter('#short_description_content')->text());
+                $this->log('BODY: '.$p['Body']);
             }
             if(iterator_count($c_product->filter('#more_info_sheets'))) {
                 $p['Body'] = trim($c_product->filter('#more_info_sheets')->text());
@@ -431,9 +448,10 @@ class aqCommand extends ContainerAwareCommand
             }
 
             $p['Variant Price'] = null;
-            if(iterator_count($c_product->filter('#our_price_display'))) {
-                $p['Variant Price'] = $c_product->filter('#our_price_display')->text();
-                $this->logV('PRICE: '.$p['Variant Price']);
+            die(var_dump(iterator_count($c_product->filter('span[itemprop="price"]'))));
+            if(iterator_count($c_product->filter('span[itemprop="price"]'))) {
+                $p['Variant Price'] = $c_product->filter('span[itemprop="price"]')->text();
+                $this->log('PRICE: '.$p['Variant Price']);
             }
 
             if(iterator_count($c_product->filter('#product_reference span'))) {
@@ -447,8 +465,8 @@ class aqCommand extends ContainerAwareCommand
             $p['Image Alt Text'] = null;
             $p['Variant Image'] = null;
             $img = null;
-            if($c_product->filter('#thumbs_list ul li a img')->count()) {
-                $c_images = $c_product->filter('#thumbs_list ul li a img');
+            if($c_product->filter('#image-block img')->count()) {
+                $c_images = $c_product->filter('#image-block img');
                 foreach ($c_images as $i => $content) {
                     $c_image = new Crawler($content);
                     $img = $c_image->attr('src');
@@ -456,10 +474,10 @@ class aqCommand extends ContainerAwareCommand
                     $img = str_replace('medium','large',$img);
                     $img_local = explode('/', $img);
                     $img_local = end($img_local);
-                    $img_edemy = "http://maste.es/d/aquatic/original/" . $img_local;
+                    $img_edemy = "http://maste.es/d/azaria/original/" . $img_local;
                     try {
                         file_put_contents(
-                            "/var/www/".$this->dh."/www/web/d/aquatic/original/".$img_local,
+                            "/var/www/".$this->dh."/www/web/d/azaria/original/".$img_local,
                             file_get_contents($img)
                         );
                     } catch (\Exception $e) {
@@ -475,7 +493,7 @@ class aqCommand extends ContainerAwareCommand
             }
         }
 
-        $p['Vendor'] = 'aquatic';
+        $p['Vendor'] = 'azaria';
         $p['Type'] = $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'];
         $p['Tags'] = $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'];
         if(array_key_exists('Variant Price',$p)) {
@@ -502,38 +520,289 @@ class aqCommand extends ContainerAwareCommand
         $p['Variant Taxable'] = 'TRUE';
         $p['Variant Barcode'] = null;
 
-/*
-        if(iterator_count($c_product->filter('#attributes .attribute_fieldset'))) {
-            $attributes = $c_product->filter('#attributes .attribute_fieldset');
-            foreach ($attributes as $i => $content) {
-                $c_attribute = new Crawler($content);
-                $attribute_name = $c_attribute->filter('label')->text();
-                $this->log('ATTR NAME: ' . $attribute_name);
-                $variant_suffix = $this->getVariantSuffix($link);
+        /*
+                if(iterator_count($c_product->filter('#attributes .attribute_fieldset'))) {
+                    $attributes = $c_product->filter('#attributes .attribute_fieldset');
+                    foreach ($attributes as $i => $content) {
+                        $c_attribute = new Crawler($content);
+                        $attribute_name = $c_attribute->filter('label')->text();
+                        $this->log('ATTR NAME: ' . $attribute_name);
+                        $variant_suffix = $this->getVariantSuffix($link);
 
-                $values = $c_attribute->filter('.attribute_select')->children();
-                foreach($values as $i => $content) {
-                    $c_value = new Crawler($content);
-                    $value = trim($c_value->filter('option')->text());
-                    $value = str_replace(' ','_',$value);
-                    $this->log($link . '#/' . $variant_suffix . '-' . $value);
-                    $c_variant = $this->follow($link . '#/' . $variant_suffix . '-' . $value);
-                    $this->log('VARIANT: ' . $c_variant->filter('#our_price_display')->text());
+                        $values = $c_attribute->filter('.attribute_select')->children();
+                        foreach($values as $i => $content) {
+                            $c_value = new Crawler($content);
+                            $value = trim($c_value->filter('option')->text());
+                            $value = str_replace(' ','_',$value);
+                            $this->log($link . '#/' . $variant_suffix . '-' . $value);
+                            $c_variant = $this->follow($link . '#/' . $variant_suffix . '-' . $value);
+                            $this->log('VARIANT: ' . $c_variant->filter('#our_price_display')->text());
+                        }
+
+                    }
+                    //$this->logV('PRICE: '.$p['price']);
                 }
-
-            }
-            //$this->logV('PRICE: '.$p['price']);
-        }
-*/
+        */
 
         $this->p_count++;
         return $p;
     }
+    protected function categorias_($crawler, $xpath) {
+        $c_cats = $crawler->filter($xpath);
+        if (iterator_count($c_cats)) {
+            foreach ($c_cats as $i => $content) {
+                if(
+                    ($this->firstCategory <= $this->category_count) &&
+                    (($this->firstCategory + $this->maxCategories - 1) >= $this->category_count)
+                ) {
+                    $c_cat = new Crawler($content);
+                    $this->categoria = $c_cat->filter('a')->text();
+                    $this->output->writeln('<info>' . 'CAT: ' . $this->categoria . '</info>');
+
+                    $c_subcats = $c_cat->filter('ul')->first()->children();
+                    if (iterator_count($c_subcats)) {
+                        foreach ($c_subcats as $i => $content) {
+                            if(
+                                ($this->firstSubcategory <= $this->subcategory_count) &&
+                                (($this->firstSubcategory + $this->maxSubcategories - 1) >= $this->subcategory_count)
+                            ) {
+                                $c_subcat = new Crawler($content);
+                                $this->subcategoria = $c_subcat->filter('a')->text();
+                                $this->output->writeln('<info>'.'SUBCAT: '.$this->subcategoria.'</info>');
+
+                                if (iterator_count($c_subcat->filter('ul')->first())) {
+                                    $c_subsubcats = $c_subcat->filter('ul')->first()->children();
+                                } else {
+                                    $c_subsubcats = $c_subcats;
+                                }
+                                if (iterator_count($c_subsubcats)) {
+                                    foreach ($c_subsubcats as $i => $content) {
+                                        if(
+                                            ($this->firstSubsubcategory <= $this->subsubcategory_count) &&
+                                            (($this->firstSubsubcategory + $this->maxSubsubcategories - 1) >= $this->subsubcategory_count)
+                                        ) {
+                                            $c_subsubcat = new Crawler($content);
+                                            $this->subsubcategoria = $c_subsubcat->filter('a')->text();
+                                            $this->output->writeln(
+                                                '<info>'.'SUBSUBCAT: '.$this->subsubcategoria.'</info>'
+                                            );
+
+                                            //follow
+                                            $link = $c_subsubcat->filter('a')->attr('href');
+                                            try {
+                                                $c_products = $this->follow($link);
+                                            } catch (\Exception $e) {
+
+                                            }
+
+                                            //while next get the products
+                                            $continue = false;
+                                            do {
+                                                if (iterator_count($c_products->filter('.product_list'))) {
+                                                    $c_products_list = $c_products->filter(
+                                                        '.product_list'
+                                                    )->children();
+                                                    if (iterator_count($c_products_list)) {
+                                                        foreach ($c_products_list as $i => $content) {
+                                                            $c_product = new Crawler($content);
+                                                            $link = $c_product->filter('.product-name')->attr('href');
+                                                            //die(var_dump($link));
+                                                            try {
+                                                                $c_product = $this->follow($link);
+                                                                $this->product($c_product);
+                                                            } catch (\Exception $e) {
+
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                //die(var_dump($c_products->filter('#pagination_next a')->count()));
+                                                if ($c_products->filter('#pagination_next a')->count()) {
+                                                    $next = $c_products->filter('#pagination_next a')->first(
+                                                    )->attr(
+                                                        'href'
+                                                    );
+                                                    //die(var_dump($this->domain));
+                                                    $c_products = $this->follow($this->domain.$next);
+                                                    $continue = true;
+                                                } else {
+                                                    $continue = false;
+                                                }
+
+                                            } while ($continue);
+                                        }
+                                        $this->subsubcategory_count++;
+                                    }
+                                }
+                            }
+                            if ($this->writeSubcategories) {
+                                $this->writeCsv($this->products, $this->subcategoria);
+                                empty($this->products);
+                            }
+
+                            $this->subcategory_count++;
+                        }
+                    }
+                }
+                $this->category_count++;
+            }
+            if ($this->writeAllSubcategories) {
+                $this->writeCsv($this->products, 'allsubcategories');
+                empty($this->products);
+            }
+        } else {
+            if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
+                $this->output->writeln("No hay categorías.");
+            }
+        }
+    }
+
+    protected function product_($c_product) {
+        $title = $c_product->filter('h1[itemprop="name"]')->text();
+        $this->output->writeln('<question>'. $this->subcount++ .' NAME: '.$title.'</question>');
+
+        //$description = $c_product->filter('#short_description_content')->text();
+        //$this->output->writeln('DESC: '.$description);
+
+        //$price = $c_product->filter('#our_price_display')->text();
+        //$this->output->writeln('PRICE: '.$price);
+/*
+        $img = null;
+        if($c_product->filter('#thumbs_list ul li a')->count()) {
+            $c_images = $c_product->filter('#thumbs_list ul li a');
+            foreach ($c_images as $i => $content) {
+                $c_image = new Crawler($content);
+                $img = $c_image->attr('href');
+                $this->output->writeln('IMG: ' . $img);
+            }
+        }
+        $this->count++;
+        $this->subcount++;
+        //$pvp = $this->getPvp($number);
+        $pvp = $price;
+        $this->products[$this->count]['Handle'] = $this->sluggify($title);
+        $this->products[$this->count]['Title'] = $title;
+        $this->products[$this->count]['Body'] = $description;
+        $this->products[$this->count]['Vendor'] = 'azaria';
+        $this->products[$this->count]['Type'] = $this->categoria . ' - ' . $this->subcategoria;
+        $this->products[$this->count]['Tags'] = $this->categoria . ' - ' . $this->subcategoria . ",";
+        if($pvp) {
+            $this->products[$this->count]['Published'] = 'TRUE';
+        } else {
+            $this->products[$this->count]['Published'] = 'FALSE';
+        }
+        $this->products[$this->count]['Option1 Name'] = 'Tamaño';
+        //$this->products[$this->count]['Option1 Value'] = trim($size . ' ' . $comment);
+        $this->products[$this->count]['Option1 Value'] = 0;
+        $this->products[$this->count]['Option2 Name'] = null;
+        $this->products[$this->count]['Option2 Value'] = null;
+        $this->products[$this->count]['Option3 Name'] = null;
+        $this->products[$this->count]['Option3 Value'] = null;
+        $this->products[$this->count]['Variant SKU'] = null;
+        //$this->products[$this->count]['Variant Grams'] = $this->getPeso($number, $size, 'peso');
+        $this->products[$this->count]['Variant Grams'] = 0;
+        $this->products[$this->count]['Variant Inventory Tracker'] = null; //'shopify';
+        $this->products[$this->count]['Variant Inventory Qty'] = 100;
+        $this->products[$this->count]['Variant Inventory Policy'] = 'continue';
+        $this->products[$this->count]['Variant Fulfillment Service'] = 'manual';
+        if($pvp) {
+            $this->products[$this->count]['Variant Price'] = $pvp;
+        } else {
+            $this->products[$this->count]['Variant Price'] = 0;
+        }
+        $this->products[$this->count]['Variant Compare At Price'] = null;
+        $this->products[$this->count]['Variant Requires Shipping'] = 'TRUE';
+        $this->products[$this->count]['Variant Taxable'] = 'TRUE';
+        //$this->products[$this->count]['Variant Barcode'] = null;
+        if($img) {
+            $img_local = explode('/', $img);
+            $img_local = end($img_local);
+            $img_edemy = "http://edemy.es/d/azaria/resized/" . $img_local;
+            //die(var_dump($img_local));
+            //die(var_dump($img_local));
+
+            file_put_contents("/var/www/" . $this->dh . "/www/web/d/azaria/original/" . $img_local, file_get_contents($img));
+            $this->products[$this->count]['Image Src'] = $img_edemy;
+            //$this->products[$this->count]['Image Alt Text'] = $title . ' ' . $size;
+            $this->products[$this->count]['Image Alt Text'] = '';
+            $this->products[$this->count]['Variant Image'] = $img_edemy;
+        } else {
+            $this->products[$this->count]['Image Src'] = null;
+            $this->products[$this->count]['Image Alt Text'] = null;
+            $this->products[$this->count]['Variant Image'] = null;
+        }
+        //$this->products[$this->count]['Variant Weight Unit'] = $this->getPeso($number, $size, 'unidad');
+        $this->products[$this->count]['Variant Weight Unit'] = 0;
+
+
+
+        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            $this->output->writeln('<comment>' . $title . '</comment>' . ' ' . $size . ' ' . $img);
+        }
+        //$this->output->writeln($subtitle);
+        //$this->output->writeln($bodytext);
+        //$this->output->writeln($size . "  " . $img);
+        //if($description) $this->output->writeln($description);
+        //if($feedingnote) $this->output->writeln($feedingnote);
+        //if($composition) $this->output->writeln($composition);
+        //if($qualityanalysis) $this->output->writeln($qualityanalysis);
+        //if($additives) $this->output->writeln($additives);
+*/
+    }
+
+    protected function follow($link) {
+        try {
+            //$body = $this->client->get($link)->getBody();
+            //$content = $this->getContents($body);
+
+            $content = $this->processAction('info@maste.es', '123456', "http://" . $link);
+            $content = $this->getContents($content);
+            if($content) {
+                $d = new \DOMDocument;
+                libxml_use_internal_errors(true);
+                $d->loadHTML($content);
+                libxml_clear_errors();
+                //die('b');
+                //die(var_dump($content));
+                $content = $d->getElementsByTagName('body')->item(0);
+                //die(var_dump($body));
+            }
+            //die('a');
+            $crawler = new Crawler($content);
+
+            return $crawler;
+        } catch (\Exception $e) {
+            //die(var_dump($e));
+            return false;
+        }
+    }
+
+    public function processAction($user, $passwd, $link) {
+        //$proc = $this->getParam($param, null, null, null, true);
+        $process = new Process('phantomjs /var/www/maste.es/www/web/d/azaria.js ' . $user . ' ' . $passwd . ' ' . $link);
+        $process->run();
+
+        // executes after the command finishes
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException($process->getErrorOutput());
+        }
+
+        return $process->getOutput();
+    }
+
+    protected function trim($regex, $cad, $rtrim = 0) {
+        $cad = trim(preg_replace($regex, '', $cad));
+        if($rtrim) {
+            return substr_replace($cad, "", $rtrim);
+        } else {
+            return $cad;
+        }
+    }
 
     protected function writeCsv($products, $file) {
-        $fp = fopen("/var/www/" . $this->dh . "/www/web/d/aquatic/csv/" . $file . '.csv', 'w');
+        $fp = fopen("/var/www/" . $this->dh . "/www/web/d/azaria/csv/" . $file . '.csv', 'w');
         fputcsv($fp, array(
-            'Handle', 
+            'Handle',
             'Title',
             'Body (HTML)',
             'Vendor',
@@ -715,151 +984,13 @@ class aqCommand extends ContainerAwareCommand
         }
         fclose($fp);
     }
+
     protected function getContents($stream) {
         ob_start();
         echo $stream;
         $output = ob_get_contents();
         ob_end_clean();
         return $output;
-    }
-
-    private function sluggify($str){
-        # special accents
-        $a = array('�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','�','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','�','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','?','?','J','j','K','k','L','l','L','l','L','l','?','?','L','l','N','n','N','n','N','n','?','O','o','O','o','O','o','�','�','R','r','R','r','R','r','S','s','S','s','S','s','�','�','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','�','Z','z','Z','z','�','�','?','�','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','?','?','?','?','?','?');
-        $b = array('A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','s','a','a','a','a','a','a','ae','c','e','e','e','e','i','i','i','i','n','o','o','o','o','o','o','u','u','u','u','y','y','A','a','A','a','A','a','C','c','C','c','C','c','C','c','D','d','D','d','E','e','E','e','E','e','E','e','E','e','G','g','G','g','G','g','G','g','H','h','H','h','I','i','I','i','I','i','I','i','I','i','IJ','ij','J','j','K','k','L','l','L','l','L','l','L','l','l','l','N','n','N','n','N','n','n','O','o','O','o','O','o','OE','oe','R','r','R','r','R','r','S','s','S','s','S','s','S','s','T','t','T','t','T','t','U','u','U','u','U','u','U','u','U','u','U','u','W','w','Y','y','Y','Z','z','Z','z','Z','z','s','f','O','o','U','u','A','a','I','i','O','o','U','u','U','u','U','u','U','u','U','u','A','a','AE','ae','O','o');
-        return strtolower(preg_replace(array('/[^a-zA-Z0-9 -]/','/[ -]+/','/^-|-$/'),array('','-',''),str_replace($a,$b,$str)));
-    }
-
-    private function loadPrices() {
-        if (($handle = fopen("/var/www/" . $this->dh . "/www/web/d/aquatic/csv/precios_aquatic.csv", "r")) !== FALSE) {
-            while (($data = fgetcsv($handle, null, ",")) !== FALSE) {
-                if(is_numeric($data[1])) {
-                    $ref = (int) $data [1];
-                    $coste = (float) $data[4];
-                    $pvp = (float) $data[5];
-                    if($pvp == 0) $pvp = $coste * 1.5;
-                    $pesos = explode(' ', trim($data[2]));
-                    $peso = (float) $pesos[0];
-                    $unidad = $pesos[1];
-
-                    $this->prices[$ref]['coste'] = $coste;
-                    $this->prices[$ref]['pvp'] = $pvp;
-                    $this->prices[$ref]['peso'] = $peso;
-                    $this->prices[$ref]['unidad'] = $unidad;
-                    //$this->output->writeln($data[1]);
-                }
-            }
-            fclose($handle);
-        }
-    }
-    
-    private function getPvp($ref) {
-        if(array_key_exists($ref, $this->prices)) {
-            setlocale(LC_MONETARY, 'es_ES');
-            return (float) money_format('%i', $this->prices[$ref]['pvp']);
-        } else {
-            if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-                $this->output->writeln("precio no encontrado en ref: " . $ref);
-            }
-            return null;
-        }
-    }
-
-    private function getCoste($ref) {
-        if(array_key_exists($ref, $this->prices)) {
-            return (float) $this->prices[$ref]['coste'];
-        } else {
-            if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-                $this->output->writeln("precio no encontrado en ref: " . $ref);
-            }
-            return null;
-        }
-    }
-
-    private function getPeso($ref, $size, $info = 'peso') {
-        preg_match_all('/\((.*?)\)/', $size, $matches);
-        if(count($matches)>1) {
-            if($matches[1]) {
-                if(count($matches[1])) {
-                    $pesos = explode(' ', trim($matches[1][0]));
-                }
-            } else {
-                $pesos = explode(' ', trim($size));
-            }
-            if(count($pesos) > 1) {
-                $peso = (float) str_replace(',', '.', $pesos[0]);
-                $unidad = $pesos[1];
-            } else {
-                $unidad = 'no unit';
-            }
-        }
-        if ($unidad == 'ml') {
-            $peso = $peso * 0.6;
-        } elseif($unidad == 'kg') {
-            $peso = $peso * 1000;
-            $unidad = 'g';
-        } elseif($unidad == 'l') {
-            $peso = $peso * 600;
-            $unidad = 'g';
-        } elseif($unidad == 'g') {
-            
-        } else {
-            $peso = 500;
-            $unidad = 'g';
-        }
-        if($info == 'peso') {
-            return $peso;
-        } 
-        if($info == 'unidad') {
-            return $unidad;
-        }
-    }
-/*
-    private function getUnidad($ref, $size) {
-        if(array_key_exists($ref, $this->prices)) {
-            if($this->prices[$ref]['unidad'] == 'ml') {
-                return 'g';
-            } else {
-                return $this->prices[$ref]['unidad'];
-            }
-        } else {
-            $this->output->writeln("peso no encontrado en ref: " . $ref);
-            return null;
-        }
-    }
-    */
-
-    protected function getVariantSuffix($link) {
-        $aux = null;
-        $content = file_get_contents($link);
-        if(preg_match("/tabInfos\['group'\](.)*;/i", $content, $coincidencias)) {
-            $aux = explode('=', $coincidencias[0]);
-            $aux = preg_replace('/[ \';]/','',$aux[1]);
-        }
-
-        return $aux;
-    }
-
-    protected function follow($link) {
-        try {
-            $body = $this->client->get($link)->getBody();
-            $content = $this->getContents($body);
-            $crawler = new Crawler($content);
-
-            return $crawler;
-        } catch (\Exception $e) {
-
-            return false;
-        }
-    }
-
-    protected function trim($regex, $cad, $rtrim = 0) {
-        $cad = trim(preg_replace($regex, '', $cad));
-        if($rtrim) {
-            return substr_replace($cad, "", $rtrim);
-        } else {
-            return $cad;
-        }
     }
 
     protected function log($msg, $fg = null, $bg = null, $options = array()) {
