@@ -2,6 +2,9 @@
 
 namespace eDemy\ProductBundle\Command;
 
+use eDemy\ProductBundle\Entity\Product;
+use eDemy\ProductBundle\Entity\Imagen;
+use Symfony\Component\HttpFoundation\File\File;
 use GuzzleHttp\Cookie\SetCookie;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
@@ -180,7 +183,7 @@ class azCommand extends ContainerAwareCommand
     protected function categories() {
         if ($this->gc) {
             $this->logV('Start categories crawling');
-            $crawler = $this->follow($this->h.$this->url);
+            $crawler = $this->follow("http://" . $this->h.$this->url);
             $c_cats = $crawler->filter($this->categories_xpath)->children();
             if (iterator_count($c_cats)) {
                 foreach ($c_cats as $i => $content) {
@@ -189,13 +192,14 @@ class azCommand extends ContainerAwareCommand
                         $item = $c_cat->filter($this->category_item_xpath);
                         $name = trim($item->text());
                         $url = $item->attr('href');
+                        $this->follow($url);
                         $this->c[$this->c_count]['id'] = $this->c_count;
                         $this->c[$this->c_count]['name'] = $name;
                         $this->c[$this->c_count]['url'] = $url;
                         $this->log($this->c_count.' CAT: '.$name, 'red');
                         $p = array();
                         if ($this->gs) {
-                            $subcategories = $this->subcategories($this->c_count);
+                            $subcategories = $this->subcategories($this->c_count, $c_cat);
                             $this->c[$this->c_count]['s'] = $subcategories;
                             if ((count($subcategories) == 0) && ($this->gsp == 1)) {
                                 $this->gcp = 1;
@@ -229,7 +233,8 @@ class azCommand extends ContainerAwareCommand
                                     }
                                 }
                             }
-                            $this->writeCsv($p, $this->c[$this->c_count]['name']);
+                            //$this->writeCsv($p, $this->c[$this->c_count]['name']);
+                            $this->persistProducts($p, $this->c[$this->c_count]['name']);
                         }
                     }
                     $this->c_count++;
@@ -243,12 +248,14 @@ class azCommand extends ContainerAwareCommand
         }
     }
 
-    protected function subcategories($c_count) {
+    protected function subcategories($c_count, $c_cat) {
         $this->s = array();
         $this->logV('Start subcategories crawling');
         //$c_cat = $this->follow($this->c[$num]['url']);
-        $c_cat = $this->follow($this->h . $this->url);
-        $c_subcats = $c_cat->filter($this->categories_xpath)->children()->eq($c_count - 1)->filter($this->subcategories_xpath)->children();
+        //die(var_dump($this->c[$num]['url']));
+        //$c_cat = $this->follow($this->h . $this->url);
+        //$c_subcats = $c_cat->filter($this->categories_xpath)->children()->eq($c_count - 1)->filter($this->subcategories_xpath)->children();
+        $c_subcats = $c_cat->filter($this->subcategories_xpath)->children();
         //$c_subcats = $c_cat->filter('ul')->first()->children();
         if (iterator_count($c_subcats)) {
             foreach ($c_subcats as $i => $content) {
@@ -257,12 +264,13 @@ class azCommand extends ContainerAwareCommand
                     $item = $c_subcat->filter($this->subcategory_item_xpath);
                     $name = trim($item->text());
                     $url = $item->attr('href');
+                    $this->follow($url);
                     $this->s[$this->s_count]['id'] = $this->s_count;
                     $this->s[$this->s_count]['name'] = $name;
                     $this->s[$this->s_count]['url'] = $url;
                     $this->log($this->s_count . ' SUBCAT: ' . $name, 'yellow');
                     if ($this->gss) {
-                        $subsubcategories = $this->subsubcategories($c_count, $this->s_count);
+                        $subsubcategories = $this->subsubcategories($c_count, $this->s_count,$c_subcat);
                         $this->s[$this->s_count]['ss'] = $subsubcategories;
                         if((count($subsubcategories) == 0) && ($this->gssp == 1)) {
                             $this->gsp = 1;
@@ -291,7 +299,8 @@ class azCommand extends ContainerAwareCommand
                             }
                         }
 
-                        $this->writeCsv($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name']);
+                        //$this->writeCsv($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name']);
+                        $this->persistProducts($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name']);
                     }
                 }
                 $this->s_count++;
@@ -302,16 +311,15 @@ class azCommand extends ContainerAwareCommand
         return $this->s;
     }
 
-    protected function subsubcategories($c_count, $s_count) {
+    protected function subsubcategories($c_count, $s_count, $c_subcat) {
         $this->ss = array();
         $this->p = array();
         $this->logV('Start subsubcategories crawling');
         //$c_cat = $this->follow($this->c[$num]['url']);
-        $c_cat = $this->follow($this->h . $this->url);
+        //$c_cat = $this->follow($this->h . $this->url);
         try {
-            $c_subsubcats = $c_cat->filter($this->categories_xpath)->children()->eq($c_count - 1)->filter(
-                $this->subcategories_xpath
-            )->children()->eq($s_count - 1)->filter($this->subsubcategories_xpath)->children();
+            //$c_subsubcats = $c_cat->filter($this->categories_xpath)->children()->eq($c_count - 1)->filter($this->subcategories_xpath)->children()->eq($s_count - 1)->filter($this->subsubcategories_xpath)->children();
+            $c_subsubcats = $c_subcat->filter($this->subsubcategories_xpath)->children();
         } catch(\Exception $e){
             return $this->ss;
         }
@@ -323,6 +331,7 @@ class azCommand extends ContainerAwareCommand
                     $item = $c_subsubcat->filter($this->subsubcategory_item_xpath);
                     $name = trim($item->text());
                     $url = $item->attr('href');
+                    //$this->follow($url);
                     $this->ss[$this->ss_count]['id'] = $this->ss_count;
                     $this->ss[$this->ss_count]['name'] = $name;
                     $this->ss[$this->ss_count]['url'] = $url;
@@ -336,7 +345,8 @@ class azCommand extends ContainerAwareCommand
                         //$this->ss[$this->ss_count]['p'] = $products;
                     }
                     if($this->wss) {
-                        $this->writeCsv($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'] . '-' . $this->ss[$this->ss_count]['name']);
+                        //$this->writeCsv($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'] . '-' . $this->ss[$this->ss_count]['name']);
+                        $this->persistProducts($p, $this->c[$this->c_count]['name'] . '-' . $this->s[$this->s_count]['name'] . '-' . $this->ss[$this->ss_count]['name']);
                     }
                 }
                 $this->ss_count++;
@@ -357,12 +367,11 @@ class azCommand extends ContainerAwareCommand
                         foreach ($c_products_list as $i => $content) {
                             $c_product = new Crawler($content);
                             $link = $c_product->filter('h5 a')->attr('href');
-
-                            //if ($c_product_details = $this->follow($link)) {
-                            //    $product = $this->product($c_product_details, $link);
-                            //} else {
+                            if ($c_product_details = $this->follow($link)) {
+                                $product = $this->product($c_product_details, $link);
+                            } else {
                                 $product = $this->product($c_product, $link, true);
-                            //}
+                            }
                             $product['url'] = $link;
                             $products[$this->p_count] = $product;
                         }
@@ -396,7 +405,7 @@ class azCommand extends ContainerAwareCommand
                 $this->logV('DESC: '.$p['Body']);
             }
             $p['Variant Price'] = null;
-            die(var_dump(iterator_count($c_product->filter('span[itemprop="price"]'))));
+            //die(var_dump(iterator_count($c_product->filter('span[itemprop="price"]'))));
             if (iterator_count($c_product->filter('span[itemprop="price"]'))) {
                 $p['Variant Price'] = $c_product->filter('span[itemprop="price"]')->text();
                 $this->logV('PRICE: '.$p['Variant Price']);
@@ -434,9 +443,8 @@ class azCommand extends ContainerAwareCommand
             }
         } else {
             $p['Title'] = $c_product->filter('h1[itemprop="name"]')->text();
-            $p['Handle'] = $this->sluggify($p['Title']);
+            $p['Handle'] = $p['Title']; //$this->sluggify($p['Title']);
             $this->log($this->p_count .' NAME: ' . $p['Title'], 'cyan');
-
             $p['Body'] = null;
             if(iterator_count($c_product->filter('#short_description_content'))) {
                 $p['Body'] = trim($c_product->filter('#short_description_content')->text());
@@ -448,7 +456,7 @@ class azCommand extends ContainerAwareCommand
             }
 
             $p['Variant Price'] = null;
-            die(var_dump(iterator_count($c_product->filter('span[itemprop="price"]'))));
+            //die(var_dump(iterator_count($c_product->filter('span[itemprop="price"]'))));
             if(iterator_count($c_product->filter('span[itemprop="price"]'))) {
                 $p['Variant Price'] = $c_product->filter('span[itemprop="price"]')->text();
                 $this->log('PRICE: '.$p['Variant Price']);
@@ -475,9 +483,11 @@ class azCommand extends ContainerAwareCommand
                     $img_local = explode('/', $img);
                     $img_local = end($img_local);
                     $img_edemy = "http://maste.es/d/azaria/original/" . $img_local;
+                    $img_path = "/var/www/".$this->dh."/www/web/d/azaria/original/".$img_local;
+                    $p['Image path'] = $img_path;
                     try {
                         file_put_contents(
-                            "/var/www/".$this->dh."/www/web/d/azaria/original/".$img_local,
+                            $img_path,
                             file_get_contents($img)
                         );
                     } catch (\Exception $e) {
@@ -547,215 +557,13 @@ class azCommand extends ContainerAwareCommand
         $this->p_count++;
         return $p;
     }
-    protected function categorias_($crawler, $xpath) {
-        $c_cats = $crawler->filter($xpath);
-        if (iterator_count($c_cats)) {
-            foreach ($c_cats as $i => $content) {
-                if(
-                    ($this->firstCategory <= $this->category_count) &&
-                    (($this->firstCategory + $this->maxCategories - 1) >= $this->category_count)
-                ) {
-                    $c_cat = new Crawler($content);
-                    $this->categoria = $c_cat->filter('a')->text();
-                    $this->output->writeln('<info>' . 'CAT: ' . $this->categoria . '</info>');
-
-                    $c_subcats = $c_cat->filter('ul')->first()->children();
-                    if (iterator_count($c_subcats)) {
-                        foreach ($c_subcats as $i => $content) {
-                            if(
-                                ($this->firstSubcategory <= $this->subcategory_count) &&
-                                (($this->firstSubcategory + $this->maxSubcategories - 1) >= $this->subcategory_count)
-                            ) {
-                                $c_subcat = new Crawler($content);
-                                $this->subcategoria = $c_subcat->filter('a')->text();
-                                $this->output->writeln('<info>'.'SUBCAT: '.$this->subcategoria.'</info>');
-
-                                if (iterator_count($c_subcat->filter('ul')->first())) {
-                                    $c_subsubcats = $c_subcat->filter('ul')->first()->children();
-                                } else {
-                                    $c_subsubcats = $c_subcats;
-                                }
-                                if (iterator_count($c_subsubcats)) {
-                                    foreach ($c_subsubcats as $i => $content) {
-                                        if(
-                                            ($this->firstSubsubcategory <= $this->subsubcategory_count) &&
-                                            (($this->firstSubsubcategory + $this->maxSubsubcategories - 1) >= $this->subsubcategory_count)
-                                        ) {
-                                            $c_subsubcat = new Crawler($content);
-                                            $this->subsubcategoria = $c_subsubcat->filter('a')->text();
-                                            $this->output->writeln(
-                                                '<info>'.'SUBSUBCAT: '.$this->subsubcategoria.'</info>'
-                                            );
-
-                                            //follow
-                                            $link = $c_subsubcat->filter('a')->attr('href');
-                                            try {
-                                                $c_products = $this->follow($link);
-                                            } catch (\Exception $e) {
-
-                                            }
-
-                                            //while next get the products
-                                            $continue = false;
-                                            do {
-                                                if (iterator_count($c_products->filter('.product_list'))) {
-                                                    $c_products_list = $c_products->filter(
-                                                        '.product_list'
-                                                    )->children();
-                                                    if (iterator_count($c_products_list)) {
-                                                        foreach ($c_products_list as $i => $content) {
-                                                            $c_product = new Crawler($content);
-                                                            $link = $c_product->filter('.product-name')->attr('href');
-                                                            //die(var_dump($link));
-                                                            try {
-                                                                $c_product = $this->follow($link);
-                                                                $this->product($c_product);
-                                                            } catch (\Exception $e) {
-
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                //die(var_dump($c_products->filter('#pagination_next a')->count()));
-                                                if ($c_products->filter('#pagination_next a')->count()) {
-                                                    $next = $c_products->filter('#pagination_next a')->first(
-                                                    )->attr(
-                                                        'href'
-                                                    );
-                                                    //die(var_dump($this->domain));
-                                                    $c_products = $this->follow($this->domain.$next);
-                                                    $continue = true;
-                                                } else {
-                                                    $continue = false;
-                                                }
-
-                                            } while ($continue);
-                                        }
-                                        $this->subsubcategory_count++;
-                                    }
-                                }
-                            }
-                            if ($this->writeSubcategories) {
-                                $this->writeCsv($this->products, $this->subcategoria);
-                                empty($this->products);
-                            }
-
-                            $this->subcategory_count++;
-                        }
-                    }
-                }
-                $this->category_count++;
-            }
-            if ($this->writeAllSubcategories) {
-                $this->writeCsv($this->products, 'allsubcategories');
-                empty($this->products);
-            }
-        } else {
-            if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_NORMAL) {
-                $this->output->writeln("No hay categorías.");
-            }
-        }
-    }
-
-    protected function product_($c_product) {
-        $title = $c_product->filter('h1[itemprop="name"]')->text();
-        $this->output->writeln('<question>'. $this->subcount++ .' NAME: '.$title.'</question>');
-
-        //$description = $c_product->filter('#short_description_content')->text();
-        //$this->output->writeln('DESC: '.$description);
-
-        //$price = $c_product->filter('#our_price_display')->text();
-        //$this->output->writeln('PRICE: '.$price);
-/*
-        $img = null;
-        if($c_product->filter('#thumbs_list ul li a')->count()) {
-            $c_images = $c_product->filter('#thumbs_list ul li a');
-            foreach ($c_images as $i => $content) {
-                $c_image = new Crawler($content);
-                $img = $c_image->attr('href');
-                $this->output->writeln('IMG: ' . $img);
-            }
-        }
-        $this->count++;
-        $this->subcount++;
-        //$pvp = $this->getPvp($number);
-        $pvp = $price;
-        $this->products[$this->count]['Handle'] = $this->sluggify($title);
-        $this->products[$this->count]['Title'] = $title;
-        $this->products[$this->count]['Body'] = $description;
-        $this->products[$this->count]['Vendor'] = 'azaria';
-        $this->products[$this->count]['Type'] = $this->categoria . ' - ' . $this->subcategoria;
-        $this->products[$this->count]['Tags'] = $this->categoria . ' - ' . $this->subcategoria . ",";
-        if($pvp) {
-            $this->products[$this->count]['Published'] = 'TRUE';
-        } else {
-            $this->products[$this->count]['Published'] = 'FALSE';
-        }
-        $this->products[$this->count]['Option1 Name'] = 'Tamaño';
-        //$this->products[$this->count]['Option1 Value'] = trim($size . ' ' . $comment);
-        $this->products[$this->count]['Option1 Value'] = 0;
-        $this->products[$this->count]['Option2 Name'] = null;
-        $this->products[$this->count]['Option2 Value'] = null;
-        $this->products[$this->count]['Option3 Name'] = null;
-        $this->products[$this->count]['Option3 Value'] = null;
-        $this->products[$this->count]['Variant SKU'] = null;
-        //$this->products[$this->count]['Variant Grams'] = $this->getPeso($number, $size, 'peso');
-        $this->products[$this->count]['Variant Grams'] = 0;
-        $this->products[$this->count]['Variant Inventory Tracker'] = null; //'shopify';
-        $this->products[$this->count]['Variant Inventory Qty'] = 100;
-        $this->products[$this->count]['Variant Inventory Policy'] = 'continue';
-        $this->products[$this->count]['Variant Fulfillment Service'] = 'manual';
-        if($pvp) {
-            $this->products[$this->count]['Variant Price'] = $pvp;
-        } else {
-            $this->products[$this->count]['Variant Price'] = 0;
-        }
-        $this->products[$this->count]['Variant Compare At Price'] = null;
-        $this->products[$this->count]['Variant Requires Shipping'] = 'TRUE';
-        $this->products[$this->count]['Variant Taxable'] = 'TRUE';
-        //$this->products[$this->count]['Variant Barcode'] = null;
-        if($img) {
-            $img_local = explode('/', $img);
-            $img_local = end($img_local);
-            $img_edemy = "http://edemy.es/d/azaria/resized/" . $img_local;
-            //die(var_dump($img_local));
-            //die(var_dump($img_local));
-
-            file_put_contents("/var/www/" . $this->dh . "/www/web/d/azaria/original/" . $img_local, file_get_contents($img));
-            $this->products[$this->count]['Image Src'] = $img_edemy;
-            //$this->products[$this->count]['Image Alt Text'] = $title . ' ' . $size;
-            $this->products[$this->count]['Image Alt Text'] = '';
-            $this->products[$this->count]['Variant Image'] = $img_edemy;
-        } else {
-            $this->products[$this->count]['Image Src'] = null;
-            $this->products[$this->count]['Image Alt Text'] = null;
-            $this->products[$this->count]['Variant Image'] = null;
-        }
-        //$this->products[$this->count]['Variant Weight Unit'] = $this->getPeso($number, $size, 'unidad');
-        $this->products[$this->count]['Variant Weight Unit'] = 0;
-
-
-
-        if ($this->output->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
-            $this->output->writeln('<comment>' . $title . '</comment>' . ' ' . $size . ' ' . $img);
-        }
-        //$this->output->writeln($subtitle);
-        //$this->output->writeln($bodytext);
-        //$this->output->writeln($size . "  " . $img);
-        //if($description) $this->output->writeln($description);
-        //if($feedingnote) $this->output->writeln($feedingnote);
-        //if($composition) $this->output->writeln($composition);
-        //if($qualityanalysis) $this->output->writeln($qualityanalysis);
-        //if($additives) $this->output->writeln($additives);
-*/
-    }
 
     protected function follow($link) {
         try {
             //$body = $this->client->get($link)->getBody();
             //$content = $this->getContents($body);
 
-            $content = $this->processAction('info@maste.es', '123456', "http://" . $link);
+            $content = $this->processAction('info@maste.es', '123456', $link);
             $content = $this->getContents($content);
             if($content) {
                 $d = new \DOMDocument;
@@ -796,6 +604,41 @@ class azCommand extends ContainerAwareCommand
             return substr_replace($cad, "", $rtrim);
         } else {
             return $cad;
+        }
+    }
+
+    protected function persistProducts($products, $file) {
+        $em = $this->getContainer()->get('doctrine.orm.entity_manager');
+        foreach ($products as $product) {
+            if(array_key_exists('Variant Price',$product)) {
+                if ($product['Variant Price'] != null) {
+                    if (($product['Variant Price'] != null) and ($product['Title'] != null)) {
+                        $p = new Product();
+                        $p->setName($product['Title']);
+                        $p->setDescription($product['Body']);
+                        //$p->setEntityManager();
+                        $p->setNamespace('tecafeycomplementos');
+                        $p->setPrice($product['Variant Price']);
+                        $p->setPriceUnit('kg');
+                        $p->setPublished(true);
+                        //TODO set category and tags
+                        //$p->setCategory();
+                        //$p->setTags();
+                        //$product['Tags']
+                        $img = new Imagen($em);
+                        $img->setHost($this->h);
+                        $f = new File($product['Image path']);
+                        $img->setFile($f);
+                        $img->setProduct($p);
+                        $p->addImagen($img);
+                        //$product['Image Src'], //Image Src
+                        //$product['Image Alt Text'], //Image Alt Text
+                        $em->persist($img);
+                        $em->persist($p);
+                        $em->flush();
+                    }
+                }
+            }
         }
     }
 
@@ -984,6 +827,8 @@ class azCommand extends ContainerAwareCommand
         }
         fclose($fp);
     }
+
+
 
     protected function getContents($stream) {
         ob_start();
