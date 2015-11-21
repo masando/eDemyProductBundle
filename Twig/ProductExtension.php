@@ -39,11 +39,14 @@ class ProductExtension extends \Twig_Extension
                     }
                 }
             }
-            $content = $this->container->get('edemy.product')->render('templates/product/related',array(
-                'entities'  => $related
-            ));
 
-            return $content;
+			if(count($related)) {
+				$content = $this->container->get('edemy.product')->render('templates/product/related',array(
+					'entities'  => $related
+				));
+				
+				return $content;
+			} 
 //        }
     }
 

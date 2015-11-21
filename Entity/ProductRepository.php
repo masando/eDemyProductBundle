@@ -39,6 +39,7 @@ class ProductRepository extends ResourceRepository
             $qb->setParameter('namespace', $namespace);
         }
         $qb->andWhere('p.category = :category_id');
+        $qb->andWhere('p.published = 1');
         $qb->orderBy('p.name','ASC');
         $qb->setParameter('category_id', $id);
         $query = $qb->getQuery();
