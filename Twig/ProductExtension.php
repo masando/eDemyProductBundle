@@ -28,13 +28,18 @@ class ProductExtension extends \Twig_Extension
 //        if ($this->container->get('security.authorization_checker')->isGranted('ROLE_USER')) {
             $repository = $this->container->get('anh_taggable.manager')->getTaggingRepository();
             $related = new ArrayCollection();
+            $i = 0;
             foreach ($entity->getTags() as $tag) {
                 $ids = $repository->getResourcesWithTypeAndTag('product_product', $tag);
                 foreach($ids as $id){
-                    $product = $this->container->get('doctrine.orm.entity_manager')->getRepository('eDemyProductBundle:Product')->findOneById($id);
-                    if($product) {
-                        if(!$related->contains($product)) {
-                            $related->add($product);
+                    $product = $this->container->get('doctrine.orm.entity_manager')->getRepository(
+                        'eDemyProductBundle:Product'
+                    )->findOneById($id);
+                    if ($product) {
+                        if($i++ < 6) {
+                            if (!$related->contains($product)) {
+                                $related->add($product);
+                            }
                         }
                     }
                 }
